@@ -38,6 +38,8 @@ async def on_audio_data(processor, audio, sample_rate, num_channels):
 
 ### Changed
 
+- `XTTSService` language now defaults to `Language.EN`.
+
 - `SoundfileMixer` doesn't resample input files anymore to avoid startup
   delays. The sample rate of the provided sound files now need to match the
   sample rate of the output transport.
@@ -58,12 +60,27 @@ async def on_audio_data(processor, audio, sample_rate, num_channels):
 - Updated the `FireworksLLMService` to use the `OpenAILLMService`. Updated the
   default model to `accounts/fireworks/models/firefunction-v2`.
 
+- Updated the `simple-chatbot` example to include a Javascript and React client
+  example, using RTVI JS and React.
+
 ### Removed
 
 - Removed `AppFrame`. This was used as a special user custom frame, but there's
   actually no use case for that.
 
 ### Fixed
+
+- Fixed `FastAPIWebsocketTransport` so it can work with binary data (e.g. using
+  the protobuf serializer).
+
+- Fixed an issue in `CartesiaTTSService` that could cause previous audio to be
+  received after an interruption.
+
+- Fixed Cartesia, ElevenLabs, LMNT and PlayHT TTS websocket
+  reconnection. Before, if an error occurred no reconnection was happening.
+
+- Fixed a `BaseOutputTransport` issue that was causing audio to be discarded
+  after an `EndFrame` was received.
 
 - Fixed an issue in `WebsocketServerTransport` and `FastAPIWebsocketTransport`
   that would cause a busy loop when using audio mixer.
