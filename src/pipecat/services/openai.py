@@ -171,24 +171,24 @@ class BaseOpenAILLMService(LLMService):
     async def _stream_chat_completions(
         self, context: OpenAILLMContext
     ) -> AsyncStream[ChatCompletionChunk]:
-        logger.debug(f"Generating chat: {context.get_messages_for_logging()}")
+        #logger.debug(f"Generating chat: {context.get_messages_for_logging()}")
 
         messages: List[ChatCompletionMessageParam] = context.get_messages()
 
-        # base64 encode any images
-        for message in messages:
-            if message.get("mime_type") == "image/jpeg":
-                encoded_image = base64.b64encode(message["data"].getvalue()).decode("utf-8")
-                text = message["content"]
-                message["content"] = [
-                    {"type": "text", "text": text},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
-                    },
-                ]
-                del message["data"]
-                del message["mime_type"]
+        # # base64 encode any images
+        # for message in messages:
+        #     if message.get("mime_type") == "image/jpeg":
+        #         encoded_image = base64.b64encode(message["data"].getvalue()).decode("utf-8")
+        #         text = message["content"]
+        #         message["content"] = [
+        #             {"type": "text", "text": text},
+        #             {
+        #                 "type": "image_url",
+        #                 "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+        #             },
+        #         ]
+        #         del message["data"]
+        #         del message["mime_type"]
 
         chunks = await self.get_chat_completions(context, messages)
 
