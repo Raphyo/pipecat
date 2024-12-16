@@ -170,7 +170,7 @@ class BaseOpenAILLMService(LLMService):
     async def _stream_chat_completions(
         self, context: OpenAILLMContext
     ) -> AsyncStream[ChatCompletionChunk]:
-        #logger.debug(f"Generating chat: {context.get_messages_for_logging()}")
+        # logger.debug(f"Generating chat: {context.get_messages_for_logging()}")
 
         messages: List[ChatCompletionMessageParam] = context.get_messages()
 
@@ -602,4 +602,3 @@ class OpenAIAssistantContextAggregator(LLMAssistantContextAggregator):
 
         except Exception as e:
             logger.error(f"Error processing frame: {e}")
-
