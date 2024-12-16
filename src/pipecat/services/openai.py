@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-import base64
 import io
 import json
 from dataclasses import dataclass
@@ -12,10 +11,8 @@ from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
 import aiohttp
 import httpx
-from loguru import logger
 from PIL import Image
-from pydantic import BaseModel, Field
-
+from loguru import logger
 from pipecat.frames.frames import (
     ErrorFrame,
     Frame,
@@ -46,6 +43,7 @@ from pipecat.processors.aggregators.openai_llm_context import (
 )
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.ai_services import ImageGenService, LLMService, TTSService
+from pydantic import BaseModel, Field
 
 try:
     from openai import (
@@ -59,7 +57,8 @@ try:
 except ModuleNotFoundError as e:
     logger.error(f"Exception: {e}")
     logger.error(
-        "In order to use OpenAI, you need to `pip install pipecat-ai[openai]`. Also, set `OPENAI_API_KEY` environment variable."
+        "In order to use OpenAI, you need to `pip install pipecat-ai[openai]`. Also, set `OPENAI_API_KEY` environment "
+        "variable."
     )
     raise Exception(f"Missing module: {e}")
 
@@ -603,3 +602,4 @@ class OpenAIAssistantContextAggregator(LLMAssistantContextAggregator):
 
         except Exception as e:
             logger.error(f"Error processing frame: {e}")
+
