@@ -694,19 +694,17 @@ class DailyInputTransport(BaseInputTransport):
             self._audio_in_task = self.get_event_loop().create_task(self._audio_in_task_handler())
 
     async def stop(self, frame: EndFrame):
+        # Leave the room.
+        await self._client.leave()
+        # Stop audio thread.
+        if self._audio_in_task and (self._params.audio_in_enabled or self._params.vad_enabled):
+            self._audio_in_task.cancel()
+            await self._audio_in_task
+            self._audio_in_task = None
         # Parent stop.
         await super().stop(frame)
-        # Leave the room.
-        await self._client.leave()
-        # Stop audio thread.
-        if self._audio_in_task and (self._params.audio_in_enabled or self._params.vad_enabled):
-            self._audio_in_task.cancel()
-            await self._audio_in_task
-            self._audio_in_task = None
 
     async def cancel(self, frame: CancelFrame):
-        # Parent stop.
-        await super().cancel(frame)
         # Leave the room.
         await self._client.leave()
         # Stop audio thread.
@@ -714,6 +712,8 @@ class DailyInputTransport(BaseInputTransport):
             self._audio_in_task.cancel()
             await self._audio_in_task
             self._audio_in_task = None
+        # Parent stop.
+        await super().cancel(frame)
 
     async def cleanup(self):
         await super().cleanup()
@@ -785,12 +785,13 @@ class DailyInputTransport(BaseInputTransport):
         render_frame = False
 
         curr_time = time.time()
-        prev_time = self._video_renderers[participant_id]["timestamp"] or curr_time
+        prev_time = self._video_renderers[participant_id]["timestamp"]
         framerate = self._video_renderers[participant_id]["framerate"]
 
         if framerate > 0:
             next_time = prev_time + 1 / framerate
-            render_frame = (curr_time - next_time) < 0.1
+            render_frame = (next_time - curr_time) < 0.1
+
         elif self._video_renderers[participant_id]["render_next_frame"]:
             self._video_renderers[participant_id]["render_next_frame"] = False
             render_frame = True
@@ -800,8 +801,7 @@ class DailyInputTransport(BaseInputTransport):
                 user_id=participant_id, image=buffer, size=size, format=format
             )
             await self.push_frame(frame)
-
-        self._video_renderers[participant_id]["timestamp"] = curr_time
+            self._video_renderers[participant_id]["timestamp"] = curr_time
 
 
 class DailyOutputTransport(BaseOutputTransport):
@@ -817,16 +817,16 @@ class DailyOutputTransport(BaseOutputTransport):
         await self._client.join()
 
     async def stop(self, frame: EndFrame):
+        # Leave the room.
+        await self._client.leave()
         # Parent stop.
         await super().stop(frame)
-        # Leave the room.
-        await self._client.leave()
 
     async def cancel(self, frame: CancelFrame):
-        # Parent stop.
-        await super().cancel(frame)
         # Leave the room.
         await self._client.leave()
+        # Parent stop.
+        await super().cancel(frame)
 
     async def cleanup(self):
         await super().cleanup()
