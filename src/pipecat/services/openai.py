@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
+import base64
 import io
 import json
 from dataclasses import dataclass
@@ -11,8 +12,10 @@ from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
 import aiohttp
 import httpx
-from PIL import Image
 from loguru import logger
+from PIL import Image
+from pydantic import BaseModel, Field
+
 from pipecat.frames.frames import (
     ErrorFrame,
     Frame,
@@ -22,6 +25,7 @@ from pipecat.frames.frames import (
     LLMFullResponseStartFrame,
     LLMMessagesFrame,
     LLMUpdateSettingsFrame,
+    OpenAILLMContextAssistantTimestampFrame,
     StartInterruptionFrame,
     TextFrame,
     TTSAudioRawFrame,
@@ -43,7 +47,7 @@ from pipecat.processors.aggregators.openai_llm_context import (
 )
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.ai_services import ImageGenService, LLMService, TTSService
-from pydantic import BaseModel, Field
+from pipecat.utils.time import time_now_iso8601
 
 try:
     from openai import (
@@ -57,8 +61,7 @@ try:
 except ModuleNotFoundError as e:
     logger.error(f"Exception: {e}")
     logger.error(
-        "In order to use OpenAI, you need to `pip install pipecat-ai[openai]`. Also, set `OPENAI_API_KEY` environment "
-        "variable."
+        "In order to use OpenAI, you need to `pip install pipecat-ai[openai]`. Also, set `OPENAI_API_KEY` environment variable."
     )
     raise Exception(f"Missing module: {e}")
 
@@ -174,20 +177,20 @@ class BaseOpenAILLMService(LLMService):
 
         messages: List[ChatCompletionMessageParam] = context.get_messages()
 
-        # # base64 encode any images
-        # for message in messages:
-        #     if message.get("mime_type") == "image/jpeg":
-        #         encoded_image = base64.b64encode(message["data"].getvalue()).decode("utf-8")
-        #         text = message["content"]
-        #         message["content"] = [
-        #             {"type": "text", "text": text},
-        #             {
-        #                 "type": "image_url",
-        #                 "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
-        #             },
-        #         ]
-        #         del message["data"]
-        #         del message["mime_type"]
+        # base64 encode any images
+        for message in messages:
+            if message.get("mime_type") == "image/jpeg":
+                encoded_image = base64.b64encode(message["data"].getvalue()).decode("utf-8")
+                text = message["content"]
+                message["content"] = [
+                    {"type": "text", "text": text},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"},
+                    },
+                ]
+                del message["data"]
+                del message["mime_type"]
 
         chunks = await self.get_chat_completions(context, messages)
 
@@ -558,7 +561,6 @@ class OpenAIAssistantContextAggregator(LLMAssistantContextAggregator):
                     self._context.add_message(
                         {
                             "role": "assistant",
-                            "content": "",  # content field required for Grok function calling
                             "tool_calls": [
                                 {
                                     "id": frame.tool_call_id,
@@ -597,8 +599,13 @@ class OpenAIAssistantContextAggregator(LLMAssistantContextAggregator):
             if run_llm:
                 await self._user_context_aggregator.push_context_frame()
 
+            # Push context frame
             frame = OpenAILLMContextFrame(self._context)
             await self.push_frame(frame)
+
+            # Push timestamp frame with current time
+            timestamp_frame = OpenAILLMContextAssistantTimestampFrame(timestamp=time_now_iso8601())
+            await self.push_frame(timestamp_frame)
 
         except Exception as e:
             logger.error(f"Error processing frame: {e}")
