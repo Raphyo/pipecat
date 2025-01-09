@@ -229,7 +229,6 @@ class DeepgramSTTService(STTService):
         if len(transcript) > 0:
             await self.stop_ttfb_metrics()
             if is_final:
-                logger.info(f"DEEPGRAM TRANSCRIPT: {transcript}")
                 await self.push_frame(
                     TranscriptionFrame(transcript, "", time_now_iso8601(), language)
                 )

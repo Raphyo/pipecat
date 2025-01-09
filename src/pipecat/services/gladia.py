@@ -229,7 +229,6 @@ class GladiaSTTService(STTService):
                 transcript = utterance["text"]
                 if confidence >= self._confidence:
                     if content["data"]["is_final"]:
-                        logger.info(f"GLADIA TRANSCRIPT: {transcript}")
                         await self.push_frame(
                             TranscriptionFrame(transcript, "", time_now_iso8601())
                         )
