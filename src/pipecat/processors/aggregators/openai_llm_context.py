@@ -50,15 +50,39 @@ class CustomEncoder(json.JSONEncoder):
 
 class OpenAILLMContext:
     def __init__(
-        self,
-        messages: List[ChatCompletionMessageParam] | None = None,
-        tools: List[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
-        tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven = NOT_GIVEN,
+            self,
+            messages: List[ChatCompletionMessageParam] | None = None,
+            tools: List[ChatCompletionToolParam] | NotGiven = NOT_GIVEN,
+            tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven = NOT_GIVEN,
+            user_name: str = None,
+            user_email: str = None,
+            user_phonenumber: str = None,
+            cal_booking_uid: str = None
     ):
         self._messages: List[ChatCompletionMessageParam] = messages if messages else []
         self._tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven = tool_choice
         self._tools: List[ChatCompletionToolParam] | NotGiven = tools
         self._user_image_request_context = {}
+        self._user_name = user_name
+        self._user_email = user_email
+        self._user_phonenumber = user_phonenumber
+        self._cal_booking_uid = cal_booking_uid
+
+    @property
+    def user_name(self) -> str:
+        return self._user_name
+
+    @property
+    def user_email(self) -> str:
+        return self._user_email
+
+    @property
+    def user_phonenumber(self) -> str:
+        return self._user_phonenumber
+
+    @property
+    def cal_booking_uid(self) -> str:
+        return self._cal_booking_uid
 
     @staticmethod
     def from_messages(messages: List[dict]) -> "OpenAILLMContext":
