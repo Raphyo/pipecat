@@ -84,6 +84,10 @@ class OpenAILLMContext:
     def cal_booking_uid(self) -> str:
         return self._cal_booking_uid
 
+    @cal_booking_uid.setter
+    def cal_booking_uid(self, value: str):
+        self._cal_booking_uid = value
+
     @staticmethod
     def from_messages(messages: List[dict]) -> "OpenAILLMContext":
         context = OpenAILLMContext()
