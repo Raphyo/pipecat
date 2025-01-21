@@ -9,11 +9,10 @@ import copy
 import io
 import json
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, List, Optional
+from typing import Any, Awaitable, Callable, List
 
-from loguru import logger
 from PIL import Image
-
+from loguru import logger
 from pipecat.frames.frames import (
     AudioRawFrame,
     Frame,
