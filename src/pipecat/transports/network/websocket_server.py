@@ -11,8 +11,6 @@ import wave
 from typing import Awaitable, Callable
 
 from loguru import logger
-from pydantic import BaseModel
-
 from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
@@ -28,6 +26,7 @@ from pipecat.serializers.protobuf import ProtobufFrameSerializer
 from pipecat.transports.base_input import BaseInputTransport
 from pipecat.transports.base_output import BaseOutputTransport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pydantic import BaseModel
 
 try:
     import websockets
