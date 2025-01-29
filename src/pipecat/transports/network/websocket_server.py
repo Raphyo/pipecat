@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -40,11 +40,13 @@ except ModuleNotFoundError as e:
 class WebsocketServerParams(TransportParams):
     add_wav_header: bool = False
     serializer: FrameSerializer = ProtobufFrameSerializer()
+    session_timeout: int | None = None
 
 
 class WebsocketServerCallbacks(BaseModel):
     on_client_connected: Callable[[websockets.WebSocketServerProtocol], Awaitable[None]]
     on_client_disconnected: Callable[[websockets.WebSocketServerProtocol], Awaitable[None]]
+    on_session_timeout: Callable[[websockets.WebSocketServerProtocol], Awaitable[None]]
 
 
 class WebsocketServerInputTransport(BaseInputTransport):
@@ -69,17 +71,16 @@ class WebsocketServerInputTransport(BaseInputTransport):
 
     async def start(self, frame: StartFrame):
         await super().start(frame)
-        self._server_task = self.get_event_loop().create_task(self._server_task_handler())
+        self._server_task = self.create_task(self._server_task_handler())
 
     async def stop(self, frame: EndFrame):
         await super().stop(frame)
         self._stop_server_event.set()
-        await self._server_task
+        await self.wait_for_task(self._server_task)
 
     async def cancel(self, frame: CancelFrame):
         await super().cancel(frame)
-        self._stop_server_event.set()
-        await self._server_task
+        await self.cancel_task(self._server_task)
 
     async def _server_task_handler(self):
         logger.info(f"Starting websocket server on {self._host}:{self._port}")
@@ -96,6 +97,10 @@ class WebsocketServerInputTransport(BaseInputTransport):
 
         # Notify
         await self._callbacks.on_client_connected(websocket)
+
+        # Create a task to monitor the websocket connection
+        if self._params.session_timeout:
+            self.get_event_loop().create_task(self._monitor_websocket(websocket))
 
         # Handle incoming messages
         async for message in websocket:
@@ -116,6 +121,16 @@ class WebsocketServerInputTransport(BaseInputTransport):
         self._websocket = None
 
         logger.info(f"Client {websocket.remote_address} disconnected")
+
+    async def _monitor_websocket(self, websocket: websockets.WebSocketServerProtocol):
+        """Wait for self._params.session_timeout seconds, if the websocket is still open, trigger timeout event."""
+        try:
+            await asyncio.sleep(self._params.session_timeout)
+            if not websocket.closed:
+                await self._callbacks.on_session_timeout(websocket)
+        except asyncio.CancelledError:
+            logger.info(f"Monitoring task cancelled for: {websocket.remote_address}")
+            raise
 
 
 class WebsocketServerOutputTransport(BaseOutputTransport):
@@ -211,6 +226,7 @@ class WebsocketServerTransport(BaseTransport):
         self._callbacks = WebsocketServerCallbacks(
             on_client_connected=self._on_client_connected,
             on_client_disconnected=self._on_client_disconnected,
+            on_session_timeout=self._on_session_timeout,
         )
         self._input: WebsocketServerInputTransport | None = None
         self._output: WebsocketServerOutputTransport | None = None
@@ -220,6 +236,7 @@ class WebsocketServerTransport(BaseTransport):
         # these handlers.
         self._register_event_handler("on_client_connected")
         self._register_event_handler("on_client_disconnected")
+        self._register_event_handler("on_session_timeout")
 
     def input(self) -> WebsocketServerInputTransport:
         if not self._input:
@@ -246,3 +263,6 @@ class WebsocketServerTransport(BaseTransport):
             await self._call_event_handler("on_client_disconnected", websocket)
         else:
             logger.error("A WebsocketServerTransport output is missing in the pipeline")
+
+    async def _on_session_timeout(self, websocket):
+        await self._call_event_handler("on_session_timeout", websocket)

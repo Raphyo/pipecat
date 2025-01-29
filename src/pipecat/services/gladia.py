@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -180,7 +180,7 @@ class GladiaSTTService(STTService):
         await super().start(frame)
         response = await self._setup_gladia()
         self._websocket = await websockets.connect(response["url"])
-        self._receive_task = self.get_event_loop().create_task(self._receive_task_handler())
+        self._receive_task = self.create_task(self._receive_task_handler())
 
     async def stop(self, frame: EndFrame):
         await super().stop(frame)

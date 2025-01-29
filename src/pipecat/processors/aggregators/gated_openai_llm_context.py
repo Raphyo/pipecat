@@ -1,10 +1,8 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
-
-import asyncio
 
 from pipecat.frames.frames import CancelFrame, EndFrame, Frame, StartFrame
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContextFrame
@@ -38,18 +36,14 @@ class GatedOpenAILLMContextAggregator(FrameProcessor):
             await self.push_frame(frame, direction)
 
     async def _start(self):
-        self._gate_task = self.get_event_loop().create_task(self._gate_task_handler())
+        self._gate_task = self.create_task(self._gate_task_handler())
 
     async def _stop(self):
-        self._gate_task.cancel()
-        await self._gate_task
+        await self.cancel_task(self._gate_task)
 
     async def _gate_task_handler(self):
         while True:
-            try:
-                await self._notifier.wait()
-                if self._last_context_frame:
-                    await self.push_frame(self._last_context_frame)
-                    self._last_context_frame = None
-            except asyncio.CancelledError:
-                break
+            await self._notifier.wait()
+            if self._last_context_frame:
+                await self.push_frame(self._last_context_frame)
+                self._last_context_frame = None

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -16,6 +16,8 @@ from loguru import logger
 from pydantic import BaseModel
 
 from pipecat.frames.frames import (
+    CancelFrame,
+    EndFrame,
     Frame,
     InputAudioRawFrame,
     OutputAudioRawFrame,
@@ -27,6 +29,7 @@ from pipecat.serializers.base_serializer import FrameSerializer, FrameSerializer
 from pipecat.transports.base_input import BaseInputTransport
 from pipecat.transports.base_output import BaseOutputTransport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.utils.asyncio import cancel_task
 
 try:
     from fastapi import WebSocket
@@ -42,11 +45,13 @@ except ModuleNotFoundError as e:
 class FastAPIWebsocketParams(TransportParams):
     add_wav_header: bool = False
     serializer: FrameSerializer
+    session_timeout: int | None = None
 
 
 class FastAPIWebsocketCallbacks(BaseModel):
     on_client_connected: Callable[[WebSocket], Awaitable[None]]
     on_client_disconnected: Callable[[WebSocket], Awaitable[None]]
+    on_session_timeout: Callable[[WebSocket], Awaitable[None]]
 
 
 class FastAPIWebsocketInputTransport(BaseInputTransport):
@@ -65,8 +70,18 @@ class FastAPIWebsocketInputTransport(BaseInputTransport):
 
     async def start(self, frame: StartFrame):
         await super().start(frame)
+        if self._params.session_timeout:
+            self._monitor_websocket_task = self.create_task(self._monitor_websocket())
         await self._callbacks.on_client_connected(self._websocket)
-        self._receive_task = self.get_event_loop().create_task(self._receive_messages())
+        self._receive_task = self.create_task(self._receive_messages())
+
+    async def stop(self, frame: EndFrame):
+        await super().stop(frame)
+        await cancel_task(self._receive_task)
+
+    async def cancel(self, frame: CancelFrame):
+        await super().cancel(frame)
+        await cancel_task(self._receive_task)
 
     def _iter_data(self) -> typing.AsyncIterator[bytes | str]:
         if self._params.serializer.type == FrameSerializerType.BINARY:
@@ -87,6 +102,11 @@ class FastAPIWebsocketInputTransport(BaseInputTransport):
                 await self.push_frame(frame)
 
         await self._callbacks.on_client_disconnected(self._websocket)
+
+    async def _monitor_websocket(self):
+        """Wait for self._params.session_timeout seconds, if the websocket is still open, trigger timeout event."""
+        await asyncio.sleep(self._params.session_timeout)
+        await self._callbacks.on_session_timeout(self._websocket)
 
 
 class FastAPIWebsocketOutputTransport(BaseOutputTransport):
@@ -176,6 +196,7 @@ class FastAPIWebsocketTransport(BaseTransport):
         self._callbacks = FastAPIWebsocketCallbacks(
             on_client_connected=self._on_client_connected,
             on_client_disconnected=self._on_client_disconnected,
+            on_session_timeout=self._on_session_timeout,
         )
 
         self._input = FastAPIWebsocketInputTransport(
@@ -189,6 +210,7 @@ class FastAPIWebsocketTransport(BaseTransport):
         # these handlers.
         self._register_event_handler("on_client_connected")
         self._register_event_handler("on_client_disconnected")
+        self._register_event_handler("on_session_timeout")
 
     def input(self) -> FastAPIWebsocketInputTransport:
         return self._input
@@ -201,3 +223,6 @@ class FastAPIWebsocketTransport(BaseTransport):
 
     async def _on_client_disconnected(self, websocket):
         await self._call_event_handler("on_client_disconnected", websocket)
+
+    async def _on_session_timeout(self, websocket):
+        await self._call_event_handler("on_session_timeout", websocket)

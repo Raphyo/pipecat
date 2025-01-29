@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -169,8 +169,7 @@ class OutputGate(FrameProcessor):
         self._gate_task = self.get_event_loop().create_task(self._gate_task_handler())
 
     async def _stop(self):
-        self._gate_task.cancel()
-        await self._gate_task
+        await self.cancel_task(self._gate_task)
 
     async def _gate_task_handler(self):
         while True:
@@ -311,7 +310,7 @@ async def main():
             await transport.capture_participant_transcription(participant["id"])
             # Kick off the conversation.
             messages.append({"role": "system", "content": "Please introduce yourself to the user."})
-            await task.queue_frames([LLMMessagesFrame(messages)])
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         @transport.event_handler("on_app_message")
         async def on_app_message(transport, message, sender):

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2025, Daily
+# Copyright (c) 2024–2025, Daily
 #
 # SPDX-License-Identifier: BSD 2-Clause License
 #
@@ -267,6 +267,10 @@ async def main():
             await transport.capture_participant_transcription(participant["id"])
             # Kick off the conversation.
             await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        @transport.event_handler("on_participant_left")
+        async def on_participant_left(transport, participant, reason):
+            await task.cancel()
 
         runner = PipelineRunner()
 
