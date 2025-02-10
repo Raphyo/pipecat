@@ -50,9 +50,9 @@ from pipecat.utils.time import time_now_iso8601
 try:
     import google.ai.generativelanguage as glm
     import google.generativeai as gai
-    from google import genai
+    from google import generativeai
     from google.cloud import texttospeech_v1
-    from google.genai import types
+    from google.generativeai import types
     from google.generativeai.types import GenerationConfig
     from google.oauth2 import service_account
 except ModuleNotFoundError as e:
