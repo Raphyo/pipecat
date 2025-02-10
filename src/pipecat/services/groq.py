@@ -64,9 +64,15 @@ class GroqSTTService(BaseWhisperSTTService):
         base_url: str = "https://api.groq.com/openai/v1",
         **kwargs,
     ):
+        self.prompt = kwargs.pop("prompt", None)  # Extract and store prompt before super().__init__
+        self.language = kwargs.pop("language", 'en')
         super().__init__(model=model, api_key=api_key, base_url=base_url, **kwargs)
 
-    async def _transcribe(self, audio: bytes) -> Transcription:
+    async def _transcribe(self, audio: bytes, **kwargs) -> Transcription:
         return await self._client.audio.transcriptions.create(
-            file=("audio.wav", audio, "audio/wav"), model=self.model_name, response_format="json"
+            file=("audio.wav", audio, "audio/wav"),
+            model=self.model_name,
+            response_format="json",
+            prompt=self.prompt,
+            language=self.language
         )
