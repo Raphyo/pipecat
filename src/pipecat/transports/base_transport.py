@@ -31,17 +31,17 @@ class TransportParams(BaseModel):
     camera_out_color_format: str = "RGB"
     audio_out_enabled: bool = False
     audio_out_is_live: bool = False
-    audio_out_sample_rate: int = 24000
+    audio_out_sample_rate: Optional[int] = None
     audio_out_channels: int = 1
     audio_out_bitrate: int = 96000
     audio_out_mixer: Optional[BaseAudioMixer] = None
     audio_in_enabled: bool = False
-    audio_in_sample_rate: int = 16000
+    audio_in_sample_rate: Optional[int] = None
     audio_in_channels: int = 1
     audio_in_filter: Optional[BaseAudioFilter] = None
     vad_enabled: bool = False
     vad_audio_passthrough: bool = False
-    vad_analyzer: VADAnalyzer | None = None
+    vad_analyzer: Optional[VADAnalyzer] = None
 
 
 class BaseTransport(ABC):
@@ -51,13 +51,11 @@ class BaseTransport(ABC):
         name: Optional[str] = None,
         input_name: Optional[str] = None,
         output_name: Optional[str] = None,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         self._id: int = obj_id()
         self._name = name or f"{self.__class__.__name__}#{obj_count(self)}"
         self._input_name = input_name
         self._output_name = output_name
-        self._loop = loop or asyncio.get_running_loop()
         self._event_handlers: dict = {}
 
     @property
